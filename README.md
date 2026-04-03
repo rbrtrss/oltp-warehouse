@@ -199,6 +199,24 @@ The first warehouse slice stays at bronze-to-silver and creates:
 
 Each model casts fields explicitly and keeps the latest row per source primary key using `updated_at`.
 
+### Why DuckDB sits between bronze and silver
+
+DuckDB is not the business warehouse in this project. It is the local SQL execution engine that `dbt` uses to read bronze parquet files and produce silver parquet outputs.
+
+The architectural role is:
+
+- bronze and silver stay as parquet datasets, which keeps storage cheap, portable, and easy to inspect
+- DuckDB provides the compute layer needed to run SQL transforms, casts, window functions, and deduplication logic over those files
+- `dbt` provides model structure, dependency management, and tests on top of that execution engine
+
+In practice the flow is:
+
+```text
+PostgreSQL OLTP -> CDC parquet bronze -> DuckDB executes dbt models -> silver parquet outputs
+```
+
+This follows a separation-of-storage-and-compute principle. Parquet files define the storage layout, while DuckDB handles query execution during transformation. That keeps local development lightweight and avoids introducing a heavier warehouse platform just to model and validate the first pipeline slice.
+
 ### Validate ingestion and transforms
 
 Run the local validation gate after CDC extraction and transformation:
@@ -229,6 +247,11 @@ oltp-warehouse validate --skip-dbt-tests
 - [x] Add warehouse transformations for analytics-ready tables.
 - [x] Add local validation and test coverage for ingestion and transforms.
 - [ ] Package the pipeline for low-cost AWS deployment with S3, Lambda, and EventBridge.
+- [ ] Add a minimal deployed path that runs the pipeline on a schedule, writes to object storage, and captures logs.
+- [ ] Add structured observability for pipeline runs, including run metadata, row counts, and failure reporting.
+- [ ] Document data contracts and schema evolution expectations for bronze and silver layers.
+- [ ] Add a gold-layer analytics model or KPI-ready output on top of the silver warehouse tables.
+- [ ] Expand the README with production tradeoffs, failure modes, and the rationale behind watermark-based CDC.
 
 ## Repository Layout
 
