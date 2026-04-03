@@ -8,6 +8,7 @@ import os
 
 from oltp_warehouse.cdc import ExtractConfig, extract_cdc
 from oltp_warehouse.generator import BootstrapConfig, bootstrap_database
+from oltp_warehouse.validation import ValidateConfig, validate_local_pipeline
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,7 +67,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     transform = subparsers.add_parser(
         "transform",
-        help="Show the dbt command used to build silver warehouse models.",
+        help="Run dbt to build silver warehouse models.",
     )
     transform.add_argument(
         "--profiles-dir",
@@ -84,6 +85,46 @@ def build_parser() -> argparse.ArgumentParser:
         "--select",
         default="silver",
         help="dbt model selector to run.",
+    )
+
+    validate = subparsers.add_parser(
+        "validate",
+        help="Validate local bronze and silver outputs and run dbt tests.",
+    )
+    validate.add_argument(
+        "--bronze-root",
+        type=Path,
+        default=Path("data/raw/cdc"),
+        help="Directory containing bronze CDC parquet batches.",
+    )
+    validate.add_argument(
+        "--state-path",
+        type=Path,
+        default=Path("data/state/cdc_state.json"),
+        help="Path to the CDC watermark state file.",
+    )
+    validate.add_argument(
+        "--silver-root",
+        type=Path,
+        default=Path("data/silver"),
+        help="Directory containing silver parquet outputs.",
+    )
+    validate.add_argument(
+        "--profiles-dir",
+        type=Path,
+        default=Path("."),
+        help="Directory containing profiles.yml for dbt.",
+    )
+    validate.add_argument(
+        "--project-dir",
+        type=Path,
+        default=Path("."),
+        help="Repository root containing dbt_project.yml.",
+    )
+    validate.add_argument(
+        "--skip-dbt-tests",
+        action="store_true",
+        help="Skip dbt test execution and only run file-based validations.",
     )
 
     return parser
@@ -130,6 +171,8 @@ def main() -> int:
             parser.error(
                 "dbt is not installed. Run `uv sync` or `pip install -e .` first."
             )
+        (args.project_dir / "data" / "warehouse").mkdir(parents=True, exist_ok=True)
+        (args.project_dir / "data" / "silver").mkdir(parents=True, exist_ok=True)
         env = os.environ.copy()
         env["DBT_PROFILES_DIR"] = str(args.profiles_dir)
         subprocess.run(
@@ -144,6 +187,30 @@ def main() -> int:
             check=True,
             env=env,
         )
+        return 0
+    if args.command == "validate":
+        summary = validate_local_pipeline(
+            ValidateConfig(
+                bronze_root=args.bronze_root,
+                state_path=args.state_path,
+                silver_root=args.silver_root,
+                profiles_dir=args.profiles_dir,
+                project_dir=args.project_dir,
+                run_dbt_tests=not args.skip_dbt_tests,
+            )
+        )
+        for table_name, table_summary in summary["bronze"]["tables"].items():
+            print(
+                f"bronze:{table_name}: files={table_summary['files']}, "
+                f"rows={table_summary['rows']}"
+            )
+        for model_name, model_summary in summary["silver"]["models"].items():
+            print(
+                f"silver:{model_name}: rows={model_summary['rows']}, "
+                f"path={model_summary['path']}"
+            )
+        if summary["dbt_test"]:
+            print("dbt_test: passed")
         return 0
 
     parser.error("Unknown command")

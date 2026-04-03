@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from psycopg import connect
-
 from oltp_warehouse.config import DatabaseConfig
 from oltp_warehouse.seed_data import SeedBundle, build_seed_bundle
 
@@ -75,6 +73,8 @@ class BootstrapConfig:
 
 
 def bootstrap_database(config: BootstrapConfig) -> dict[str, int]:
+    from psycopg import connect
+
     db_config = DatabaseConfig.from_env()
     bundle = build_seed_bundle(
         seed=config.seed,

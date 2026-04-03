@@ -199,6 +199,26 @@ The first warehouse slice stays at bronze-to-silver and creates:
 
 Each model casts fields explicitly and keeps the latest row per source primary key using `updated_at`.
 
+### Validate ingestion and transforms
+
+Run the local validation gate after CDC extraction and transformation:
+
+```bash
+oltp-warehouse validate
+```
+
+This validation step:
+
+- checks bronze CDC parquet directories, required columns, readable files, and watermark state
+- checks silver parquet outputs and required columns
+- runs `dbt test --select silver`
+
+If you only want the local file-based checks and want to skip dbt tests:
+
+```bash
+oltp-warehouse validate --skip-dbt-tests
+```
+
 ## Implementation TODO
 
 - [x] Build the synthetic PostgreSQL OLTP generator.
@@ -207,7 +227,7 @@ Each model casts fields explicitly and keeps the latest row per source primary k
 - [x] Implement incremental CDC extraction with watermark tracking.
 - [x] Write raw change batches to parquet with idempotent behavior.
 - [x] Add warehouse transformations for analytics-ready tables.
-- [ ] Add local validation and test coverage for ingestion and transforms.
+- [x] Add local validation and test coverage for ingestion and transforms.
 - [ ] Package the pipeline for low-cost AWS deployment with S3, Lambda, and EventBridge.
 
 ## Repository Layout
