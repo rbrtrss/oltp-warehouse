@@ -4,11 +4,13 @@ Data engineering project that simulates a fintech OLTP system, captures changes 
 
 ## Current Status
 
-This repository now includes the first working implementation slice.
+This repository now includes the first source, extraction, and transformation slices.
 
 - A package-based CLI can bootstrap a local PostgreSQL OLTP dataset.
 - Docker Compose is included for a repeatable local PostgreSQL setup.
-- The full CDC pipeline, warehouse models, and AWS deployment assets described below are still planned.
+- Incremental CDC extraction writes parquet batches and tracks watermarks locally.
+- A dbt project builds curated silver parquet models from the bronze CDC layer.
+- AWS deployment assets described below are still planned.
 
 The README documents the intended direction so the project can evolve with a clear scope.
 
@@ -149,14 +151,62 @@ OLTP_DB_PASSWORD=oltp
 oltp-warehouse bootstrap
 ```
 
+### Extract CDC batches
+
+The first CDC run performs a full snapshot for each table and creates the watermark state file:
+
+```bash
+oltp-warehouse extract-cdc
+```
+
+Default local paths:
+
+```bash
+data/raw/cdc/
+data/state/cdc_state.json
+```
+
+Later runs use `updated_at` watermarks from `data/state/cdc_state.json` and only extract rows changed since the last successful run.
+
+### Build silver warehouse models
+
+The transformation layer uses `dbt` with the DuckDB adapter locally and writes curated silver outputs as parquet files:
+
+```bash
+oltp-warehouse transform
+```
+
+Equivalent direct dbt command:
+
+```bash
+DBT_PROFILES_DIR=. dbt run --project-dir . --select silver
+```
+
+Local paths used by the transformation layer:
+
+```bash
+data/raw/cdc/      # bronze parquet inputs
+data/silver/       # curated silver parquet outputs
+data/warehouse/    # local duckdb runtime file for dbt execution
+```
+
+The first warehouse slice stays at bronze-to-silver and creates:
+
+- `silver_accounts`
+- `silver_transactions`
+- `silver_transfers`
+- `silver_payments`
+
+Each model casts fields explicitly and keeps the latest row per source primary key using `updated_at`.
+
 ## Implementation TODO
 
 - [x] Build the synthetic PostgreSQL OLTP generator.
 - [x] Define the source schema for accounts, transactions, transfers, and payments.
 - [x] Add seed or sample data generation for repeatable local runs.
-- [ ] Implement incremental CDC extraction with watermark tracking.
-- [ ] Write raw change batches to parquet with idempotent behavior.
-- [ ] Add warehouse transformations for analytics-ready tables.
+- [x] Implement incremental CDC extraction with watermark tracking.
+- [x] Write raw change batches to parquet with idempotent behavior.
+- [x] Add warehouse transformations for analytics-ready tables.
 - [ ] Add local validation and test coverage for ingestion and transforms.
 - [ ] Package the pipeline for low-cost AWS deployment with S3, Lambda, and EventBridge.
 
@@ -167,8 +217,12 @@ Current files:
 ```bash
 .
 ├── .env.example
+├── dbt/
+│   └── models/
+├── dbt_project.yml
 ├── docker-compose.yml
 ├── main.py
+├── profiles.yml
 ├── pyproject.toml
 ├── README.md
 ├── src/

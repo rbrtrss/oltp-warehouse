@@ -11,3 +11,14 @@ wheels/
 
 # Local environment files
 .env
+
+# Local data and warehouse artifacts
+data/raw/
+data/silver/
+data/warehouse/
+data/state/
+
+# dbt artifacts
+logs/
+target/
+dbt_packages/

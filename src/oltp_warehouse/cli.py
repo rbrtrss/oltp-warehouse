@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
+import shutil
+import subprocess
+import os
 
+from oltp_warehouse.cdc import ExtractConfig, extract_cdc
 from oltp_warehouse.generator import BootstrapConfig, bootstrap_database
 
 
@@ -42,6 +47,45 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of payments to create.",
     )
 
+    extract = subparsers.add_parser(
+        "extract-cdc",
+        help="Extract changed rows from PostgreSQL into parquet batches.",
+    )
+    extract.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path("data/raw/cdc"),
+        help="Directory for parquet batch outputs.",
+    )
+    extract.add_argument(
+        "--state-path",
+        type=Path,
+        default=Path("data/state/cdc_state.json"),
+        help="Path to the watermark state file.",
+    )
+
+    transform = subparsers.add_parser(
+        "transform",
+        help="Show the dbt command used to build silver warehouse models.",
+    )
+    transform.add_argument(
+        "--profiles-dir",
+        type=Path,
+        default=Path("."),
+        help="Directory containing profiles.yml for dbt.",
+    )
+    transform.add_argument(
+        "--project-dir",
+        type=Path,
+        default=Path("."),
+        help="Repository root containing dbt_project.yml.",
+    )
+    transform.add_argument(
+        "--select",
+        default="silver",
+        help="dbt model selector to run.",
+    )
+
     return parser
 
 
@@ -64,6 +108,41 @@ def main() -> int:
             f"{summary['transactions']} transactions, "
             f"{summary['transfers']} transfers, "
             f"{summary['payments']} payments."
+        )
+        return 0
+    if args.command == "extract-cdc":
+        summary = extract_cdc(
+            ExtractConfig(
+                output_dir=args.output_dir,
+                state_path=args.state_path,
+            )
+        )
+        for table_name, table_summary in summary["tables"].items():
+            print(
+                f"{table_name}: rows={table_summary['rows']}, "
+                f"path={table_summary['path']}, "
+                f"watermark={table_summary['watermark']}"
+            )
+        return 0
+    if args.command == "transform":
+        dbt_executable = shutil.which("dbt")
+        if not dbt_executable:
+            parser.error(
+                "dbt is not installed. Run `uv sync` or `pip install -e .` first."
+            )
+        env = os.environ.copy()
+        env["DBT_PROFILES_DIR"] = str(args.profiles_dir)
+        subprocess.run(
+            [
+                dbt_executable,
+                "run",
+                "--project-dir",
+                str(args.project_dir),
+                "--select",
+                args.select,
+            ],
+            check=True,
+            env=env,
         )
         return 0
 

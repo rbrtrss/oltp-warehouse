@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: silver_accounts
+    columns:
+      - name: account_id
+        tests: [not_null, unique]
+  - name: silver_transactions
+    columns:
+      - name: transaction_id
+        tests: [not_null, unique]
+  - name: silver_transfers
+    columns:
+      - name: transfer_id
+        tests: [not_null, unique]
+  - name: silver_payments
+    columns:
+      - name: payment_id
+        tests: [not_null, unique]

@@ -1,0 +1,7 @@
+oltp_warehouse:
+  outputs:
+    dev:
+      type: duckdb
+      path: data/warehouse/oltp_warehouse.duckdb
+      threads: 4
+  target: dev

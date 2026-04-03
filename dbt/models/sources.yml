@@ -1,0 +1,17 @@
+version: 2
+
+sources:
+  - name: bronze
+    tables:
+      - name: accounts_cdc
+        config:
+          external_location: "read_parquet('{{ env_var('BRONZE_ROOT', 'data/raw/cdc') }}/accounts/*.parquet', filename=true)"
+      - name: transactions_cdc
+        config:
+          external_location: "read_parquet('{{ env_var('BRONZE_ROOT', 'data/raw/cdc') }}/transactions/*.parquet', filename=true)"
+      - name: transfers_cdc
+        config:
+          external_location: "read_parquet('{{ env_var('BRONZE_ROOT', 'data/raw/cdc') }}/transfers/*.parquet', filename=true)"
+      - name: payments_cdc
+        config:
+          external_location: "read_parquet('{{ env_var('BRONZE_ROOT', 'data/raw/cdc') }}/payments/*.parquet', filename=true)"
