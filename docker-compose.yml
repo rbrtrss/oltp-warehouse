@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: oltp-warehouse-postgres
+    environment:
+      POSTGRES_DB: ${OLTP_DB_NAME:-oltp_warehouse}
+      POSTGRES_USER: ${OLTP_DB_USER:-oltp}
+      POSTGRES_PASSWORD: ${OLTP_DB_PASSWORD:-oltp}
+    ports:
+      - "${OLTP_DB_PORT:-5432}:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${OLTP_DB_USER:-oltp} -d ${OLTP_DB_NAME:-oltp_warehouse}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

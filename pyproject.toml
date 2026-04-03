@@ -1,7 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "oltp-warehouse"
 version = "0.1.0"
-description = "Add your description here"
+description = "Synthetic OLTP bootstrap generator for a warehouse pipeline project."
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.2,<4.0",
+]
+
+[project.scripts]
+oltp-warehouse = "oltp_warehouse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

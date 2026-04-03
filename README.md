@@ -1,14 +1,14 @@
 # oltp-warehouse
 
-Early-stage scaffold for a data engineering project that simulates a fintech OLTP system, captures changes incrementally, and loads analytics-ready warehouse data.
+Data engineering project that simulates a fintech OLTP system, captures changes incrementally, and loads analytics-ready warehouse data.
 
 ## Current Status
 
-This repository is still at the scaffold stage.
+This repository now includes the first working implementation slice.
 
-- The Python project is initialized with `pyproject.toml`.
-- The current entrypoint is [`main.py`](/home/roberto/oltp-warehouse/main.py).
-- The full OLTP simulator, CDC pipeline, warehouse models, and AWS deployment assets described below are planned, not implemented yet.
+- A package-based CLI can bootstrap a local PostgreSQL OLTP dataset.
+- Docker Compose is included for a repeatable local PostgreSQL setup.
+- The full CDC pipeline, warehouse models, and AWS deployment assets described below are still planned.
 
 The README documents the intended direction so the project can evolve with a clear scope.
 
@@ -99,7 +99,7 @@ For an initial version, avoid RDS, long-running EC2, and other always-on service
 
 ## Local Development
 
-The current repo only contains the project scaffold.
+The repo now includes the local OLTP bootstrap generator and seed-data tooling.
 
 ### Requirements
 
@@ -119,17 +119,41 @@ Using `pip`:
 pip install -e .
 ```
 
-### Run
+### Start PostgreSQL
+
+Create a local env file first:
 
 ```bash
-python main.py
+cp .env.example .env
+```
+
+Then start PostgreSQL:
+
+```bash
+docker compose up -d
+```
+
+The CLI reads connection settings from `.env` by default. The committed example file is:
+
+```bash
+OLTP_DB_HOST=localhost
+OLTP_DB_PORT=5432
+OLTP_DB_NAME=oltp_warehouse
+OLTP_DB_USER=oltp
+OLTP_DB_PASSWORD=oltp
+```
+
+### Bootstrap synthetic OLTP data
+
+```bash
+oltp-warehouse bootstrap
 ```
 
 ## Implementation TODO
 
-- [ ] Build the synthetic PostgreSQL OLTP generator.
-- [ ] Define the source schema for accounts, transactions, transfers, and payments.
-- [ ] Add seed or sample data generation for repeatable local runs.
+- [x] Build the synthetic PostgreSQL OLTP generator.
+- [x] Define the source schema for accounts, transactions, transfers, and payments.
+- [x] Add seed or sample data generation for repeatable local runs.
 - [ ] Implement incremental CDC extraction with watermark tracking.
 - [ ] Write raw change batches to parquet with idempotent behavior.
 - [ ] Add warehouse transformations for analytics-ready tables.
@@ -142,12 +166,17 @@ Current files:
 
 ```bash
 .
+├── .env.example
+├── docker-compose.yml
 ├── main.py
 ├── pyproject.toml
-└── README.md
+├── README.md
+├── src/
+│   └── oltp_warehouse/
+└── tests/
 ```
 
-As the project grows, this repo will likely add source modules, configuration, tests, and deployment assets.
+The repo will grow further as CDC, warehouse modeling, and deployment assets are added.
 
 ## Design Direction
 

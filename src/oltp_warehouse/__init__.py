@@ -1,0 +1,2 @@
+"""Synthetic OLTP bootstrap generator."""
+
