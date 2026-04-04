@@ -64,6 +64,8 @@ Planned characteristics:
 - idempotent ingestion to avoid duplicates on retries
 - warehouse-friendly outputs for downstream analytics
 
+The current data contract for bronze, silver, and CDC state is documented in [docs/data-contracts.md](docs/data-contracts.md).
+
 ## AWS Deployment With Minimal Cost
 
 The preferred AWS deployment path is a serverless batch design that minimizes idle cost:
@@ -284,9 +286,9 @@ target/
 - [x] Add warehouse transformations for analytics-ready tables.
 - [x] Add local validation and test coverage for ingestion and transforms.
 - [x] Add structured observability for pipeline runs, including run metadata, row counts, and failure reporting.
+- [x] Document data contracts and schema evolution expectations for bronze and silver layers.
 - [ ] Package the pipeline for low-cost AWS deployment with S3, Lambda, and EventBridge.
 - [ ] Add a minimal deployed path that runs the pipeline on a schedule, writes to object storage, and captures logs.
-- [ ] Document data contracts and schema evolution expectations for bronze and silver layers.
 - [ ] Add a gold-layer analytics model or KPI-ready output on top of the silver warehouse tables.
 - [ ] Expand the README with production tradeoffs, failure modes, and the rationale behind watermark-based CDC.
 
