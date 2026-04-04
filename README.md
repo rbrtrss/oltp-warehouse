@@ -10,6 +10,7 @@ This repository now includes the first source, extraction, and transformation sl
 - Docker Compose is included for a repeatable local PostgreSQL setup.
 - Incremental CDC extraction writes parquet batches and tracks watermarks locally.
 - A dbt project builds curated silver parquet models from the bronze CDC layer.
+- Structured observability captures run metadata, step metrics, dbt artifacts, and failures locally.
 - AWS deployment assets described below are still planned.
 
 The README documents the intended direction so the project can evolve with a clear scope.
@@ -151,6 +152,12 @@ OLTP_DB_PASSWORD=oltp
 oltp-warehouse bootstrap
 ```
 
+By default each command also writes structured run logs under:
+
+```bash
+data/observability/
+```
+
 ### Extract CDC batches
 
 The first CDC run performs a full snapshot for each table and creates the watermark state file:
@@ -167,6 +174,12 @@ data/state/cdc_state.json
 ```
 
 Later runs use `updated_at` watermarks from `data/state/cdc_state.json` and only extract rows changed since the last successful run.
+
+You can override the default observability location for any command:
+
+```bash
+oltp-warehouse extract-cdc --observability-dir tmp/observability
+```
 
 ### Build silver warehouse models
 
@@ -237,6 +250,30 @@ If you only want the local file-based checks and want to skip dbt tests:
 oltp-warehouse validate --skip-dbt-tests
 ```
 
+### Observability and logs
+
+Each CLI command writes structured local observability artifacts by default:
+
+```bash
+data/observability/runs/      # append-only JSONL event streams per run
+data/observability/latest/    # latest summary JSON per command
+data/observability/artifacts/ # captured dbt stdout/stderr and related artifacts
+```
+
+The default event model includes:
+
+- run start and completion timestamps
+- command status and failure details
+- step-level metrics such as row counts, file counts, and durations
+- references to dbt stdout and stderr artifacts for `transform` and `validate`
+
+dbt also writes its own native artifacts separately:
+
+```bash
+logs/dbt.log
+target/
+```
+
 ## Implementation TODO
 
 - [x] Build the synthetic PostgreSQL OLTP generator.
@@ -246,9 +283,9 @@ oltp-warehouse validate --skip-dbt-tests
 - [x] Write raw change batches to parquet with idempotent behavior.
 - [x] Add warehouse transformations for analytics-ready tables.
 - [x] Add local validation and test coverage for ingestion and transforms.
+- [x] Add structured observability for pipeline runs, including run metadata, row counts, and failure reporting.
 - [ ] Package the pipeline for low-cost AWS deployment with S3, Lambda, and EventBridge.
 - [ ] Add a minimal deployed path that runs the pipeline on a schedule, writes to object storage, and captures logs.
-- [ ] Add structured observability for pipeline runs, including run metadata, row counts, and failure reporting.
 - [ ] Document data contracts and schema evolution expectations for bronze and silver layers.
 - [ ] Add a gold-layer analytics model or KPI-ready output on top of the silver warehouse tables.
 - [ ] Expand the README with production tradeoffs, failure modes, and the rationale behind watermark-based CDC.
