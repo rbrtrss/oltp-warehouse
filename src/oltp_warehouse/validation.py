@@ -3,12 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 import shutil
-import subprocess
-import os
 
 import pyarrow.parquet as pq
+
+from oltp_warehouse.observability import RunLogger, run_logged_subprocess
 
 BRONZE_TABLES = {
     "accounts": {
@@ -92,6 +93,7 @@ class ValidateConfig:
     profiles_dir: Path = Path(".")
     project_dir: Path = Path(".")
     run_dbt_tests: bool = True
+    logger: RunLogger | None = None
 
 
 def validate_local_pipeline(config: ValidateConfig) -> dict[str, object]:
@@ -102,6 +104,7 @@ def validate_local_pipeline(config: ValidateConfig) -> dict[str, object]:
         dbt_status = run_dbt_tests(
             profiles_dir=config.profiles_dir,
             project_dir=config.project_dir,
+            logger=config.logger,
         )
     return {
         "bronze": bronze,
@@ -195,15 +198,24 @@ def validate_silver_outputs(silver_root: Path) -> dict[str, object]:
     return {"models": summaries}
 
 
-def run_dbt_tests(*, profiles_dir: Path, project_dir: Path) -> dict[str, object]:
+def run_dbt_tests(
+    *,
+    profiles_dir: Path,
+    project_dir: Path,
+    logger: RunLogger | None = None,
+) -> dict[str, object]:
     dbt_executable = shutil.which("dbt")
     if not dbt_executable:
         raise ValidationError("dbt is not installed. Run `uv sync` or `pip install -e .` first.")
 
     env = os.environ.copy()
     env["DBT_PROFILES_DIR"] = str(profiles_dir)
-    subprocess.run(
-        [
+    if logger is None:
+        logger = RunLogger(command="validate")
+    result = run_logged_subprocess(
+        logger=logger,
+        step="dbt_test",
+        command=[
             dbt_executable,
             "test",
             "--project-dir",
@@ -211,7 +223,8 @@ def run_dbt_tests(*, profiles_dir: Path, project_dir: Path) -> dict[str, object]
             "--select",
             "silver",
         ],
-        check=True,
         env=env,
+        artifact_prefix="dbt-test",
+        cwd=project_dir,
     )
-    return {"status": "passed"}
+    return {"status": "passed", **result}
